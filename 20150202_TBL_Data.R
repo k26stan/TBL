@@ -810,15 +810,16 @@ identical( rownames(PC.1$x), as.character(AAC.PHENO$IID) )
 ## Prep for 10X cross-validation
 N_SAMPS <- length(SAMPLE_NAMES.ALL )
 SAMP_ORDER <- sample( SAMPLE_NAMES.ALL, N_SAMPS, replace=F )
-N_ITER <- 10
+N_ITER <- 5
 N_TEST <- ceiling( N_SAMPS / N_ITER )
-alpha <- 0.5
 L.bins <- c("BEST","SE","MIN","MAX")
 
 BETA <- LAMBDA <- PRED <- PRED.CL <- list()
 ## Loop through N Iterations
+start_time <- proc.time()
 for ( i in 1:N_ITER ) {
 	iter <- paste( "I",i,sep="_" )
+	print(paste("## Iteration",i,"of",N_ITER,"-",round(proc.time()-start_time,3)[3] ))
 	## Sample test/training sets
 	which_test <- (i-1)*N_TEST + 1:N_TEST
 	which_test <- which_test[ which(which_test <= N_SAMPS) ]
@@ -831,14 +832,17 @@ for ( i in 1:N_ITER ) {
 	X.train <- t(data.matrix( AAC.MRG[, which(AAC.PHENO$IID %in% train_set) ] ))
 	X.test <- t(data.matrix( AAC.MRG[, which(AAC.PHENO$IID %in% test_set) ] ))
 	## Run Lasso Regression
-	 # On Covariates Alone
+	 # Set Fit Parameters
+	INT <- F
+	MEAS <- "class"
+	 # Fit this Shiz
 	print("Fitting Models")
-	fit0 <- glmnet(x=X.train, y=Y.train, family="binomial", alpha=0 )
-	fit.5 <- glmnet(x=X.train, y=Y.train, family="binomial", alpha=.5 )
-	fit1 <- glmnet(x=X.train, y=Y.train, family="binomial", alpha=1 )
-	fit.cv0 <- cv.glmnet(x=X.train, y=Y.train, family="binomial", alpha=0, nfolds=20, type.measure="auc" )
-	fit.cv.5 <- cv.glmnet(x=X.train, y=Y.train, family="binomial", alpha=.5, nfolds=20, type.measure="auc" )
-	fit.cv1 <- cv.glmnet(x=X.train, y=Y.train, family="binomial", alpha=1, nfolds=20, type.measure="auc" )
+	fit0 <- glmnet(x=X.train, y=Y.train, family="binomial", alpha=0, intercept=INT )
+	fit.5 <- glmnet(x=X.train, y=Y.train, family="binomial", alpha=.5, intercept=INT )
+	fit1 <- glmnet(x=X.train, y=Y.train, family="binomial", alpha=1, intercept=INT )
+	fit.cv0 <- cv.glmnet(x=X.train, y=Y.train, family="binomial", alpha=0, intercept=INT, nfolds=20, type.measure=MEAS )
+	fit.cv.5 <- cv.glmnet(x=X.train, y=Y.train, family="binomial", alpha=.5, intercept=INT, nfolds=20, type.measure=MEAS )
+	fit.cv1 <- cv.glmnet(x=X.train, y=Y.train, family="binomial", alpha=1, intercept=INT, nfolds=20, type.measure=MEAS )
 	## Pull Lambda Values
 	L0 <- c( fit.cv0$lambda.min, fit.cv0$lambda.1se, min(fit.cv0$lambda), max(fit.cv0$lambda) )
 	L.5 <- c( fit.cv.5$lambda.min, fit.cv.5$lambda.1se, min(fit.cv.5$lambda), max(fit.cv.5$lambda) )
@@ -864,12 +868,15 @@ for ( i in 1:N_ITER ) {
 	# plot( fit.cv1, main="Alpha=1 (LASSO)" )
 	plot( log(fit.cv0$lambda),fit.cv0$cvm, main="Alpha=0 (Ridge)", pch=20,col=COLS[1],xlab="log(Lambda)",ylab=fit.cv0$name, ylim=YLIM0)
 	arrows( log(fit.cv0$lambda),fit.cv0$cvup,log(fit.cv0$lambda),fit.cv0$cvlo, code=3,angle=90,length=.05 )
+	abline( h=seq(0,1,.1), lty=c(rep(2,5),1,rep(2,5)), col=c(rep("grey50",5),"grey20",rep("grey50",5)))
 	abline( v=log(L0), col=L.COLS0, lwd=2 )
 	plot( log(fit.cv.5$lambda),fit.cv.5$cvm, main="Alpha=.5", pch=20,col=COLS[2],xlab="log(Lambda)",ylab=fit.cv.5$name, ylim=YLIM.5)
 	arrows( log(fit.cv.5$lambda),fit.cv.5$cvup,log(fit.cv.5$lambda),fit.cv.5$cvlo, code=3,angle=90,length=.05 )
+	abline( h=seq(0,1,.1), lty=c(rep(2,5),1,rep(2,5)), col=c(rep("grey50",5),"grey20",rep("grey50",5)))
 	abline( v=log(L.5), col=L.COLS.5, lwd=2 )
 	plot( log(fit.cv1$lambda),fit.cv1$cvm, main="Alpha=1 (LASSO)", pch=20,col=COLS[3],xlab="log(Lambda)",ylab=fit.cv1$name, ylim=YLIM1)
 	arrows( log(fit.cv1$lambda),fit.cv1$cvup,log(fit.cv1$lambda),fit.cv1$cvlo, code=3,angle=90,length=.05 )
+	abline( h=seq(0,1,.1), lty=c(rep(2,5),1,rep(2,5)), col=c(rep("grey50",5),"grey20",rep("grey50",5)))
 	abline( v=log(L1), col=L.COLS1, lwd=2 )
 	 # Plot Fits
 	plot( fit0, xvar="lambda", main="Alpha=0 (Ridge)" ) ; abline( v=log(L0), col=L.COLS0, lwd=2 )
@@ -899,7 +906,7 @@ for ( i in 1:N_ITER ) {
 	png( paste(PathToOut,"/CVfit_",i,"_Class_Prob.png",sep=""), height=1000,width=1600, pointsize=32)
 	plot( 0,0,type="n", xlim=c(0.5,3.5),ylim=c(0,1), main="Class Probability Distributions",xlab="Alpha Value",ylab="Class Probability", xaxt="n" )
 	abline( h=seq(0,1,.1), lty=2, col="grey50" )
-	boxplot( pred[,2:4], col=COLS, main="Class Probability Distributions",xlab="Alpha Value",ylab="Class Probability", add=T )
+	boxplot( pred[,2:4], col=COLS, main="Class Probability Distributions",xlab="Alpha Value",ylab="Class Probability", pch="", add=T )
 	for ( col in 2:4 ) { points( jitter(rep(col-1,nrow(pred))),pred[,col], col=COLS.4[col-1], pch=c("o","+")[factor(pred[,1])] ) }
 	dev.off()
 	# BRKS <- seq(0,1,.05)
@@ -929,12 +936,12 @@ for ( i in 1:N_ITER ) {
 	PRED.CL.2 <- rbind( PRED.CL.2, PRED.CL[[i]] )
 }
 colnames(PRED.2) <- colnames(PRED.CL.2) <- c("OBS","A0","A.5","A1")
-# for ( i in 2:4 ) { print( table( PRED.CL.2[,c(1,i)] ) ) }
+for ( i in 2:4 ) { print( table( PRED.CL.2[,c(1,i)] ) ) }
 
 ## Plot Histograms of Class Probabilities
 BRKS <- seq(0,1,.05)
 COLS <- c("black","springgreen2","steelblue2","slateblue2")
-par(mfrow=c(1,3))
+par(mfrow=c(3,1))
 for ( i in 2:4 ) { hist( PRED.2[,i], breaks=BRKS, col=COLS[i] ) }
 
 ######################################################
@@ -942,7 +949,7 @@ for ( i in 2:4 ) { hist( PRED.2[,i], breaks=BRKS, col=COLS[i] ) }
 ######################################################
 
 ## Prep for 10X cross-validation
-N_ITER <- 10
+N_ITER <- 5
 N_TEST <- ceiling( N_SAMPS / N_ITER )
 MOD_SIZE <- 30
 

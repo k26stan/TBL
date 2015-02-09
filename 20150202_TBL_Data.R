@@ -73,8 +73,6 @@ start-proc.time()
  # Ancestry Key
 KEY <- read.table(gsub("FILENAME","Panel_Key.txt",PathTo1KG), header=T)
 
-## Load
-
 ############################################################################################################
 ## FILTER TBL DATA #########################################################################################
 ############################################################################################################
@@ -1082,20 +1080,20 @@ for ( n in 1:N_ITER ) {
 	dev.off()
 } # Close "n" Loop
 
-for ( n in 1:N_ITER) {
-	AUC.plot <- CV_COMP[[n]]
-	XLIM <- c(1,nrow(AUC.plot))
-	YLIM <- c(0,1)
-	png( paste(PathToOut,"/Poly_Train_",n,"_9_AUC.png",sep=""), height=1200,width=1600, pointsize=24)
-	plot( 0,0,type="n", xlim=XLIM, ylim=YLIM, main="AUC vs Model", ylab="AUC", xlab="",xaxt="n")
-	axis( 1, at=1:nrow(AUC.plot), label=rownames(AUC.plot), las=2)
-	abline( h=seq(0,1,.1), lty=2, col="grey50", lwd=1 )
-	abline( h=c(0,.5,1), lty=1, col="grey20", lwd=1 )
-	abline( v=seq(0,XLIM[2],5), lty=2, col="grey50", lwd=1 )
-	points( 1:nrow(AUC.plot), AUC.plot[,1], pch=20,type="o", col="chartreuse2", lwd=3)
-	points( 1:nrow(AUC.plot), AUC.plot[,2], pch=20,type="o", col="deepskyblue2", lwd=3)
-	dev.off()
-}
+# for ( n in 1:N_ITER) {
+# 	AUC.plot <- CV_COMP[[n]]
+# 	XLIM <- c(1,nrow(AUC.plot))
+# 	YLIM <- c(0,1)
+# 	png( paste(PathToOut,"/Poly_Train_",n,"_9_AUC.png",sep=""), height=1200,width=1600, pointsize=24)
+# 	plot( 0,0,type="n", xlim=XLIM, ylim=YLIM, main="AUC vs Model", ylab="AUC", xlab="",xaxt="n")
+# 	axis( 1, at=1:nrow(AUC.plot), label=rownames(AUC.plot), las=2)
+# 	abline( h=seq(0,1,.1), lty=2, col="grey50", lwd=1 )
+# 	abline( h=c(0,.5,1), lty=1, col="grey20", lwd=1 )
+# 	abline( v=seq(0,XLIM[2],5), lty=2, col="grey50", lwd=1 )
+# 	points( 1:nrow(AUC.plot), AUC.plot[,1], pch=20,type="o", col="chartreuse2", lwd=3)
+# 	points( 1:nrow(AUC.plot), AUC.plot[,2], pch=20,type="o", col="deepskyblue2", lwd=3)
+# 	dev.off()
+# }
 
 ##################################################
 ## BINARY: TBL v 1KG

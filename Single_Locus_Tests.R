@@ -32,7 +32,10 @@ PathTo1KG <- "/Users/kstandis/Data/TBL/Data/20141001/1KG/FILENAME"
 ## LOAD DATA #########################################
 ######################################################
 
-
+POP_TBL_GC <- 
+POP_1KG_GC <- 
+VARS_BOTH <- 
+POP <- 
 
 
 
@@ -225,3 +228,8 @@ points( 1:nrow(CANDS.UNQ), -log10(CANDS.UNQ[,"GC"]), col=c(COLS[1],"firebrick2")
 points( 1:nrow(CANDS.UNQ), -log10(CANDS.UNQ[,"AC"]), col=c(COLS[2],"firebrick2")[COLS.fac], pch=4, lwd=2, cex=1.2 )
 points( 1:nrow(CANDS.UNQ), -log10(CANDS.UNQ[,"POOL"]), col=c(COLS[3],"firebrick2")[COLS.fac], pch=3, lwd=2, cex=1.2 )
 dev.off()
+
+
+######################################################
+## END OF DOC ########################################
+######################################################

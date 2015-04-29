@@ -16,8 +16,9 @@ library(glmnet)
 ######################################################
 
 ## Path To Save Plots/Results to
-DATE <- "20150205"
-PathToOut <- paste("/Users/kstandis/Data/TBL/Plots/",DATE,"_Plots",sep="")
+DATE <- "20150428"
+PathToPlot <- paste("/Users/kstandis/Data/TBL/Plots/",DATE,"_Plots",sep="")
+PathToWrite <- "/Users/kstandis/Data/TBL/Data/Filtered_Tables"
 
 ## Path to Old Data (8/25)
 PathToOldData <- "/Users/kstandis/Data/TBL/Data/FILENAME"
@@ -27,6 +28,9 @@ PathToNewData <- "/Users/kstandis/Data/TBL/Data/20141001/FILENAME"
 
 ## Path to New Set of 1KG VCF files
 PathTo1KG <- "/Users/kstandis/Data/TBL/Data/20141001/1KG/FILENAME"
+
+## Path to List of SNPs w/ Strand Issues
+PathToStrandSNPs <- "/Users/kstandis/Data/TBL/Data/20150323_Strand_Issue_SNPs.xlsx"
 
 ######################################################
 ## LOAD DATA #########################################
@@ -42,6 +46,11 @@ PathTo1KG <- "/Users/kstandis/Data/TBL/Data/20141001/1KG/FILENAME"
 
 
 
+## Load List of Strand Issues
+STRAND_LIST <- read.xlsx( PathToStrandSNPs, sheetIndex=1,rowIndex=1:19,colIndex=1:3,header=T )
+colnames(STRAND_LIST) <- c("ID","Flip","Flip_2")
+FLIP.SNPs <- as.character( STRAND_LIST$ID[ which(STRAND_LIST$Flip=="No") ] )
+FLIP.SNPs <- gsub( " ","", FLIP.SNPs )
 
 
 

@@ -16,8 +16,9 @@ library(glmnet)
 ######################################################
 
 ## Path To Save Plots/Results to
-DATE <- "20150205"
-PathToOut <- paste("/Users/kstandis/Data/TBL/Plots/",DATE,"_Plots",sep="")
+DATE <- "20150428"
+PathToPlot <- paste("/Users/kstandis/Data/TBL/Plots/",DATE,"_Plots",sep="")
+PathToWrite <- "/Users/kstandis/Data/TBL/Data/Filtered_Tables"
 
 ## Path to Old Data (8/25)
 PathToOldData <- "/Users/kstandis/Data/TBL/Data/FILENAME"
@@ -27,6 +28,9 @@ PathToNewData <- "/Users/kstandis/Data/TBL/Data/20141001/FILENAME"
 
 ## Path to New Set of 1KG VCF files
 PathTo1KG <- "/Users/kstandis/Data/TBL/Data/20141001/1KG/FILENAME"
+
+## Path to List of SNPs w/ Strand Issues
+PathToStrandSNPs <- "/Users/kstandis/Data/TBL/Data/20150323_Strand_Issue_SNPs.xlsx"
 
 ######################################################
 ## LOAD DATA #########################################
@@ -40,29 +44,29 @@ SAN_825 <- read.table(gsub("FILENAME","1KG_SAN_Tab.txt",PathToOldData), sep="\t"
 AMR_825 <- read.table(gsub("FILENAME","1KG_AMR_Tab.txt",PathToOldData), sep="\t",header=T, colClasses=c("numeric","numeric","character","factor","factor",rep("numeric",3)))
 ALL_825 <- read.table(gsub("FILENAME","1KG_ALL_Tab.txt",PathToOldData), sep="\t",header=T, colClasses=c("numeric","numeric","character","factor","factor",rep("numeric",3)))
 TBL_825 <- read.table(gsub("FILENAME","1KG_TBL_Tab_Reformat2.txt",PathToOldData), sep="\t",header=T)
-start-proc.time()
+proc.time()-start
 
 ## Load rsID/Gene/Phenotype Info (10/01)
 PGR_DIET <- read.xlsx(gsub("FILENAME","FIT genes.xlsx",PathToNewData), sheetName="Diet", colIndex=3:6, rowIndex=2:69, as.data.frame=T, header=T)
 PGR_NUTR <- read.xlsx(gsub("FILENAME","FIT genes.xlsx",PathToNewData), sheetName="Nutrition", colIndex=3:6, rowIndex=2:11, as.data.frame=T, header=T)
 PGR_EXER <- read.xlsx(gsub("FILENAME","FIT genes.xlsx",PathToNewData), sheetName="Exercise", colIndex=3:6, rowIndex=3:14, as.data.frame=T, header=T)
 PGR_META <- read.xlsx(gsub("FILENAME","FIT genes.xlsx",PathToNewData), sheetName="Metabolic Health", colIndex=3:6, rowIndex=2:55, as.data.frame=T, header=T)
-start-proc.time()
+proc.time()-start
 
 ## Load Phenotype/Genotype/Clinical Data for Patients (10/01)
-PHENO <- read.table(gsub("FILENAME","Phenotypic-Outcomes-Format-2.txt",PathToNewData), header=T, sep="\t" ) ; start-proc.time()
-GENO <- read.table(gsub("FILENAME","Genotypes-Format-2.txt",PathToNewData), header=T, sep="\t", fill=T, comment.char="" ) ; start-proc.time()
+PHENO <- read.table(gsub("FILENAME","Phenotypic-Outcomes-Format-2.txt",PathToNewData), header=T, sep="\t" ) ; proc.time()-start
+GENO <- read.table(gsub("FILENAME","Genotypes-Format-2.txt",PathToNewData), header=T, sep="\t", fill=T, comment.char="" ) ; proc.time()-start
 CLIN.l <- read.xlsx(gsub("FILENAME","BL all sample list_130426_FINAL_pg1.xlsx",PathToNewData), sheetIndex=1, colIndex=1:139, rowIndex=1:289, as.data.frame=T, header=T)
 CLIN_KEY <- data.frame( NM_1=colnames(CLIN.l), NM_2=c(CLIN.l[1,],recursive=T), row.names=NULL )
 CLIN <- CLIN.l[2:nrow(CLIN.l),]
 POOL <- read.table(gsub("FILENAME","SNP_Pheno_Pool_Summary.txt",PathToNewData), header=T, sep="\t", fill=T )
-start-proc.time()
+proc.time()-start
 
 ## Load 1KG files (10/01) 
  # Pedigree Info
 PED <- read.table(gsub("FILENAME","1KG_Pedigree_20130606_g1k.ped",PathTo1KG), header=T, sep="\t")
 INFO_PED <- read.xlsx(gsub("FILENAME","1KG_20130606_sample_info.xlsx",PathTo1KG), sheetName="Sample Info", colIndex=1:15, rowIndex=1:3501, as.data.frame=T, header=T)
-start-proc.time()
+proc.time()-start
  # VCF Files
 VCF_ALL <- read.table(gsub("FILENAME","1KG_All_Vars.vcf",PathTo1KG), sep="\t", header=T, skip=254,comment.char="")
 VCF_AFR <- read.table(gsub("FILENAME","1KG_AFR.recode.vcf",PathTo1KG), sep="\t", header=T, skip=254,comment.char="")
@@ -70,11 +74,15 @@ VCF_AMR <- read.table(gsub("FILENAME","1KG_AMR.recode.vcf",PathTo1KG), sep="\t",
 VCF_ASN <- read.table(gsub("FILENAME","1KG_ASN.recode.vcf",PathTo1KG), sep="\t", header=T, skip=254,comment.char="")
 VCF_SAN <- read.table(gsub("FILENAME","1KG_SAN.recode.vcf",PathTo1KG), sep="\t", header=T, skip=254,comment.char="")
 VCF_EUR <- read.table(gsub("FILENAME","1KG_EUR.recode.vcf",PathTo1KG), sep="\t", header=T, skip=254,comment.char="")
-start-proc.time()
+proc.time()-start
  # Ancestry Key
 KEY <- read.table(gsub("FILENAME","Panel_Key.txt",PathTo1KG), header=T)
 
-## Load
+## Load List of Strand Issues
+STRAND_LIST <- read.xlsx( PathToStrandSNPs, sheetIndex=1,rowIndex=1:19,colIndex=1:3,header=T )
+colnames(STRAND_LIST) <- c("ID","Flip","Flip_2")
+FLIP.SNPs <- as.character( STRAND_LIST$ID[ which(STRAND_LIST$Flip=="No") ] )
+FLIP.SNPs <- gsub( " ","", FLIP.SNPs )
 
 ############################################################################################################
 ## FILTER TBL DATA #########################################################################################
@@ -550,9 +558,10 @@ rownames(POP) <- POP$ID
 ## Which Variants are G<->C or A<->T (could be strand issues)
 TROUBLE <- Reduce( union, list(which(POP$REF=="C" & POP$ALT=="G"),which(POP$REF=="G" & POP$ALT=="C"),which(POP$REF=="T" & POP$ALT=="A"),which(POP$REF=="A" & POP$ALT=="T")) )
 TROUBLE_SNPS <- POP$ID[ TROUBLE ]
+TROUBLE_SNPS[ which( TROUBLE_SNPS %in% FLIP.SNPs ) ]
 
 ## Plot correlation b/n Allele Frequency
-png( paste(PathToOut,"Scatter_Allele_Freq.png",sep="/"), height=1200,width=1200, pointsize=30)
+png( paste(PathToPlot,"Scatter_Allele_Freq.png",sep="/"), height=1200,width=1200, pointsize=30)
 plot( 0,0, type="n", xlab="1KG Allele Freq",ylab="TBL Allele Freq", main="MAF - TBL vs 1KG",xlim=c(0,1),ylim=c(0,1))
 abline( h=seq(0,1,.1), lty=2, col="grey50", lwd=1 )
 abline( v=seq(0,1,.1), lty=2, col="grey50", lwd=1 )
@@ -563,8 +572,17 @@ legend( 0,1, col=c("dodgerblue2","firebrick2"), pch=20, legend=c("Confirmed","Po
 dev.off()
 
 ######################################################
-## COMBINE FREQUENCY TABLES ##########################
+## WRITE TABLES ######################################
 ######################################################
+
+## Write Tables Needed for Analyses
+write.table( POP_TBL_GC, paste(PathToWrite,"POP_TBL_GC.txt",sep="/"), sep="\t",row.names=F,col.names=T,quote=F )
+write.table( POP_1KG_GC, paste(PathToWrite,"POP_1KG_GC.txt",sep="/"), sep="\t",row.names=F,col.names=T,quote=F )
+write.table( VARS_BOTH, paste(PathToWrite,"VARS_BOTH.txt",sep="/"), sep="\t",row.names=F,col.names=F,quote=F )
+write.table( POP, paste(PathToWrite,"POP.txt",sep="/"), sep="\t",row.names=T,col.names=T,quote=F )
+write.table( TROUBLE_SNPS, paste(PathToWrite,"TROUBLE_SNPS.txt",sep="/"), sep="\t",row.names=F,col.names=F,quote=F )
+write.table( POOL, paste(PathToWrite,"POOL.txt",sep="/"), sep="\t",row.names=F,col.names=T,quote=F )
+
 
 
 

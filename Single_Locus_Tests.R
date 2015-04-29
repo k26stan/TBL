@@ -16,8 +16,9 @@ library(glmnet)
 ######################################################
 
 ## Path To Save Plots/Results to
-DATE <- "20150205"
-PathToOut <- paste("/Users/kstandis/Data/TBL/Plots/",DATE,"_Plots",sep="")
+DATE <- "20150428"
+PathToPlot <- paste("/Users/kstandis/Data/TBL/Plots/",DATE,"_Plots",sep="")
+PathToWrite <- "/Users/kstandis/Data/TBL/Data/Filtered_Tables"
 
 ## Path to Old Data (8/25)
 PathToOldData <- "/Users/kstandis/Data/TBL/Data/FILENAME"
@@ -28,19 +29,34 @@ PathToNewData <- "/Users/kstandis/Data/TBL/Data/20141001/FILENAME"
 ## Path to New Set of 1KG VCF files
 PathTo1KG <- "/Users/kstandis/Data/TBL/Data/20141001/1KG/FILENAME"
 
+## Path to List of SNPs w/ Strand Issues
+PathToStrandSNPs <- "/Users/kstandis/Data/TBL/Data/20150323_Strand_Issue_SNPs.xlsx"
+
 ######################################################
 ## LOAD DATA #########################################
 ######################################################
 
-POP_TBL_GC <- 
-POP_1KG_GC <- 
-VARS_BOTH <- 
-POP <- 
+## Load Previously Formed/Filtered Tables
+POP_TBL_GC <- read.table( paste(PathToWrite,"POP_TBL_GC.txt",sep="/"), sep="\t",header=T )
+POP_1KG_GC <- read.table( paste(PathToWrite,"POP_1KG_GC.txt",sep="/"), sep="\t",header=T )
+VARS_BOTH <- as.character( read.table( paste(PathToWrite,"VARS_BOTH.txt",sep="/"), sep="\t",header=F )[,1] )
+POP <- read.table( paste(PathToWrite,"POP.txt",sep="/"), sep="\t",header=T )
+TROUBLE_SNPS <- as.character( read.table( paste(PathToWrite,"TROUBLE_SNPS.txt",sep="/"), sep="\t",header=F )[,1] )
+POOL <- read.table( paste(PathToWrite,"POOL.txt",sep="/"), sep="\t",header=T )
+
+## Load rsID/Gene/Phenotype Info (10/01)
+PGR_DIET <- read.xlsx(gsub("FILENAME","FIT genes.xlsx",PathToNewData), sheetName="Diet", colIndex=3:6, rowIndex=2:69, as.data.frame=T, header=T)
+PGR_NUTR <- read.xlsx(gsub("FILENAME","FIT genes.xlsx",PathToNewData), sheetName="Nutrition", colIndex=3:6, rowIndex=2:11, as.data.frame=T, header=T)
+PGR_EXER <- read.xlsx(gsub("FILENAME","FIT genes.xlsx",PathToNewData), sheetName="Exercise", colIndex=3:6, rowIndex=3:14, as.data.frame=T, header=T)
+PGR_META <- read.xlsx(gsub("FILENAME","FIT genes.xlsx",PathToNewData), sheetName="Metabolic Health", colIndex=3:6, rowIndex=2:55, as.data.frame=T, header=T)
+proc.time()-start
 
 
-
-
-
+## Load List of Strand Issues
+STRAND_LIST <- read.xlsx( PathToStrandSNPs, sheetIndex=1,rowIndex=1:19,colIndex=1:3,header=T )
+colnames(STRAND_LIST) <- c("ID","Flip","Flip_2")
+FLIP.SNPs <- as.character( STRAND_LIST$ID[ which(STRAND_LIST$Flip=="No") ] )
+FLIP.SNPs <- gsub( " ","", FLIP.SNPs )
 
 ######################################################
 ## RUN TEST ON AC & GC ###############################
@@ -67,29 +83,83 @@ for ( v in 1:length(VARS_BOTH) ) {
 	p_AC[v] <- fisher.test(AC_COMB)$p.value
 }
 P_VALS <- data.frame( GC=p_GC, AC=p_AC, TROUB=rep(1,length(p_GC)) )
-P_VALS$TROUB[ which(rownames(P_VALS) %in% POP$ID[TROUBLE]) ] <- 2
+P_VALS$TROUB[ which( rownames(P_VALS) %in% POP$ID[which(POP$ID %in% TROUBLE_SNPS)] ) ] <- 2
 head(P_VALS)
 P_VALS[which(P_VALS$TROUB==2),]
+P_VALS$TROUB[ which(rownames(P_VALS) %in% FLIP.SNPs) ] <- 3
 
 ## Plot P-Values
-png( paste(PathToOut,"SNP_Pvals.png",sep="/"), height=1200,width=2600, pointsize=26)
+png( paste(PathToPlot,"SNP_Pvals.png",sep="/"), height=1200,width=2600, pointsize=26)
 plot( 0,0,type="n", xlim=c(1,nrow(P_VALS)), ylim=c(0,-log10(min(P_VALS))), xlab="", ylab="-log10(p)", main="TBL vs 1KG Frequencies", xaxt="n" )
 axis( 1, at=1:nrow(P_VALS), labels=rownames(P_VALS), las=2 )
 abline( h=seq(0,10,1), lty=2, lwd=1, col="grey50")
 abline( h=-log10(.05/nrow(P_VALS)), lty=2, lwd=3, col="chartreuse2" )
 legend( .6*nrow(P_VALS), -log10(min(P_VALS)), pch=c(15,16,18), legend=c("Genotype Count","Allele Count","Strand Issue?"), col=c(rep("dodgerblue2",2),"firebrick2") )
-points( 1:nrow(P_VALS), -log10(P_VALS$GC), col=c("dodgerblue2","firebrick2")[P_VALS$TROUB], pch=15)
-points( 1:nrow(P_VALS), -log10(P_VALS$AC), col=c("dodgerblue2","firebrick2")[P_VALS$TROUB], pch=16)
+points( 1:nrow(P_VALS), -log10(P_VALS$GC), col=c("dodgerblue2","chartreuse2","firebrick2")[P_VALS$TROUB], pch=15)
+points( 1:nrow(P_VALS), -log10(P_VALS$AC), col=c("dodgerblue2","chartreuse2","firebrick2")[P_VALS$TROUB], pch=16)
 dev.off()
 
 ## Plot P-Values for AC vs GC
 LIM <- c( 0, ceiling(-log10(min(P_VALS[,1:2]))) )
-png( paste(PathToOut,"SNP_Pvals_AvG.png",sep="/"), height=1200,width=1200, pointsize=30)
+png( paste(PathToPlot,"SNP_Pvals_AvG.png",sep="/"), height=1200,width=1200, pointsize=30)
 plot( 0,0, type="n", xlim=LIM, ylim=LIM, main="P-Values - Allele vs Genotype Counts", xlab="Allele Count [-log10(p)]", ylab="Genotype Count [-log10(p)]")
 abline( 0,1, lty=1, lwd=2, col="black" )
 abline( h=seq(0,10,1), lty=2, lwd=1, col="grey50" )
 abline( v=seq(0,10,1), lty=2, lwd=1, col="grey50" )
-points( -log10(P_VALS$AC), -log10(P_VALS$GC), col=c("dodgerblue2","firebrick2")[P_VALS$TROUB], pch=20 )
+points( -log10(P_VALS$AC), -log10(P_VALS$GC), col=c("dodgerblue2","chartreuse2","firebrick2")[P_VALS$TROUB], pch=20 )
+dev.off()
+
+######################################################
+## FLIP SNPS & RUN TEST ON AC & GC ###################
+######################################################
+
+## Sample Sizes for TBL/1KG
+SIZE_TBL <- median(rowSums(POP_TBL_GC))
+SIZE_1KG <- median(rowSums(POP_1KG_GC))
+
+## Test all Variants for Allele/Genotype Counts
+p_GC.flip <- p_AC.flip <- numeric(length(VARS_BOTH))
+names(p_GC.flip) <- names(p_AC.flip) <- VARS_BOTH
+for ( v in 1:length(VARS_BOTH) ) {
+	var <- VARS_BOTH[v]# as.character(POP$ID[v])
+	## Genotype Count
+	GC_1KG <- as.numeric( POP[var,c("GC.0_1KG","GC.1_1KG","GC.2_1KG")] )
+	GC_TBL <- as.numeric( POP[var,c("GC.0_TBL","GC.1_TBL","GC.2_TBL")] )
+	GC_COMB <- data.matrix( rbind( GC_1KG, GC_TBL ) )
+	if ( var %in% FLIP.SNPs ) { GC_COMB["GC_TBL",c(1,3)] <- GC_COMB["GC_TBL",c(3,1)] }
+	p_GC.flip[v] <- fisher.test(GC_COMB)$p.value
+	## Allele Count
+	AC_1KG <- as.numeric( POP[var,"AC_1KG"] )
+	AC_TBL <- as.numeric( POP[var,"AC_TBL"] )
+	AC_COMB <- rbind( c(AC_1KG,2*SIZE_1KG-AC_1KG), c(AC_TBL,2*SIZE_TBL-AC_TBL) )
+	if ( var %in% FLIP.SNPs ) { AC_COMB[2,1:2] <- AC_COMB[2,2:1] }
+	p_AC.flip[v] <- fisher.test(AC_COMB)$p.value
+}
+P_VALS.flip <- data.frame( GC=p_GC.flip, AC=p_AC.flip, TROUB=rep(1,length(p_GC.flip)) )
+P_VALS.flip$TROUB[ which( rownames(P_VALS.flip) %in% POP$ID[which(POP$ID %in% TROUBLE_SNPS)] ) ] <- 2
+head(P_VALS.flip)
+P_VALS.flip[which(P_VALS.flip$TROUB==2),]
+P_VALS.flip$TROUB[ which(rownames(P_VALS.flip) %in% FLIP.SNPs) ] <- 3
+
+## Plot P-Values
+png( paste(PathToPlot,"SNP_Pvals.fl.png",sep="/"), height=1200,width=2600, pointsize=26)
+plot( 0,0,type="n", xlim=c(1,nrow(P_VALS.flip)), ylim=c(0,-log10(min(P_VALS.flip))), xlab="", ylab="-log10(p)", main="TBL vs 1KG Frequencies", xaxt="n" )
+axis( 1, at=1:nrow(P_VALS.flip), labels=rownames(P_VALS.flip), las=2 )
+abline( h=seq(0,10,1), lty=2, lwd=1, col="grey50")
+abline( h=-log10(.05/nrow(P_VALS.flip)), lty=2, lwd=3, col="chartreuse2" )
+legend( .6*nrow(P_VALS.flip), -log10(min(P_VALS.flip)), pch=c(15,16,18), legend=c("Genotype Count","Allele Count","Strand Issue?"), col=c(rep("dodgerblue2",2),"firebrick2") )
+points( 1:nrow(P_VALS.flip), -log10(P_VALS.flip$GC), col=c("dodgerblue2","chartreuse2","firebrick2")[P_VALS.flip$TROUB], pch=15)
+points( 1:nrow(P_VALS.flip), -log10(P_VALS.flip$AC), col=c("dodgerblue2","chartreuse2","firebrick2")[P_VALS.flip$TROUB], pch=16)
+dev.off()
+
+## Plot P-Values for AC vs GC
+LIM <- c( 0, ceiling(-log10(min(P_VALS.flip[,1:2]))) )
+png( paste(PathToPlot,"SNP_Pvals_AvG.fl.png",sep="/"), height=1200,width=1200, pointsize=30)
+plot( 0,0, type="n", xlim=LIM, ylim=LIM, main="P-Values - Allele vs Genotype Counts", xlab="Allele Count [-log10(p)]", ylab="Genotype Count [-log10(p)]")
+abline( 0,1, lty=1, lwd=2, col="black" )
+abline( h=seq(0,10,1), lty=2, lwd=1, col="grey50" )
+abline( v=seq(0,10,1), lty=2, lwd=1, col="grey50" )
+points( -log10(P_VALS.flip$AC), -log10(P_VALS.flip$GC), col=c("dodgerblue2","chartreuse2","firebrick2")[P_VALS.flip$TROUB], pch=20 )
 dev.off()
 
 ######################################################
@@ -107,7 +177,7 @@ PGR <- rbind( data.frame(PGR_DIET,FUNC=rep("D",nrow(PGR_DIET))),
 PGR$ID <- gsub(" ","", as.character(PGR$ID) )
 
 ## Pull out SNPs w/ Decent P-Values
-THRSH <- 1 # .001
+THRSH <- .001
 WHICH_SNPS <- rownames(P_VALS)[ which( P_VALS$AC < THRSH | P_VALS$GC < THRSH ) ]
 # WHICH_SNPS <- rownames(P_VALS)
 
@@ -217,7 +287,7 @@ COLS <- c("chartreuse2","dodgerblue2","slateblue2")
 COLS.fac <- factor( CANDS.UNQ[,"TROUB"] )
 XLIM <- c( 1,nrow(CANDS.UNQ) )
 YLIM <- c( 0, -log10( min( CANDS.UNQ[,c("GC","AC","POOL")] ) ) )
-png( paste(PathToOut,"SNP_Pvals_Pool.png",sep="/"), height=1200,width=2600, pointsize=26)
+png( paste(PathToPlot,"SNP_Pvals_Pool.png",sep="/"), height=1200,width=2600, pointsize=26)
 plot( 0,0,type="n", xlim=XLIM, ylim=YLIM, main="P-Values for Frequency Tests", ylab="-log10(p)", xaxt="n",xlab="")
 axis(1, 1:nrow(CANDS.UNQ), label=CANDS.UNQ[,"CAND"], las=2 )
 abline( h=seq( 0,100,1 ), lty=2, col="grey50" )

@@ -124,7 +124,7 @@ MOD$ANOVA$WT$B1 <- lm( WT ~ MC4R.genotype+FTO.genotype, data=DAT.1, subset=which
 MOD$ANOVA$WT$I1 <- lm( WT ~ MC4R.genotype*FTO.genotype, data=DAT.1, subset=which(DAT.1$FTO.genotype!="--" & DAT.1$MC4R.genotype!="--") )
 boxplot( WT ~ MC4R.genotype, data=DAT.1, subset=DAT.1$MC4R.genotype!="--" )
 boxplot( WT ~ FTO.genotype, data=DAT.1, subset=DAT.1$FTO.genotype!="--" )
-boxplot( WT ~ +MC4R.genotype+FTO.genotype, data=DAT.1, subset=which(DAT.1$FTO.genotype!="--" & DAT.1$MC4R.genotype!="--"), col=1:3, las=2 )
+boxplot( WT ~ MC4R.genotype+FTO.genotype, data=DAT.1, subset=which(DAT.1$FTO.genotype!="--" & DAT.1$MC4R.genotype!="--"), col=1:3, las=2 )
  # HT vs Genotypes
 MOD$ANOVA$HT <- list()
 MOD$ANOVA$HT$F1 <- lm( HT ~ FTO.genotype, data=DAT.1, subset=which(DAT.1$FTO.genotype!="--" & DAT.1$MC4R.genotype!="--") )
@@ -159,6 +159,7 @@ MOD$LIN$HT$B1 <- lm( HT ~ as.numeric(as.factor(FTO.genotype))+as.numeric(as.fact
 MOD$LIN$HT$I1 <- lm( HT ~ as.numeric(as.factor(FTO.genotype))*as.numeric(as.factor(MC4R.genotype)), data=DAT.1, subset=which(DAT.1$FTO.genotype!="--" & DAT.1$MC4R.genotype!="--") )
 
 lapply( MOD$LIN, function(x) lapply( x, function(y) anova(y) ) )
+lapply( MOD$LIN$WT, function(y) anova(y) )
 
 
 
